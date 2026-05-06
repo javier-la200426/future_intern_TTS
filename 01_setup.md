@@ -104,7 +104,17 @@ The key knob is `"uploadOnSave": true`. With that on, every save in VS Code is m
 - **Edit locally → save → cluster updates.** Automatic. Just save the file.
 - **New file appeared on the cluster → pull it down to your laptop.** Cmd+Shift+P → `SFTP: Sync Remote -> Local`, pick `pax-cluster`, choose the folder. This happens whenever you (or an AI agent on the cluster) creates a new file via the cluster terminal that you then want to edit locally.
 
-There is also `SFTP: Sync Local -> Remote` for the reverse direction (useful after a bulk local change). Use it sparingly — it's easy to overwrite cluster-side edits you forgot about.
+> ### ⚠ Only ever use `Sync Remote -> Local`
+>
+> The SFTP plugin offers two sync directions: `Sync Remote -> Local` (pull from cluster to your laptop) and `Sync Local -> Remote` (push from your laptop to the cluster).
+>
+> **Use only `Sync Remote -> Local`. Never use `Sync Local -> Remote`.**
+>
+> Why: an AI agent on the cluster (or you in another SSH session) is constantly creating and modifying files there that don't yet exist on your laptop. If you run `Sync Local -> Remote`, the plugin will mirror your laptop **onto** the cluster — which means **deleting every file on the cluster that doesn't exist locally**, and **overwriting every file that's newer on the cluster with your stale local version**. You can lose hours (or days) of work in one click. There is no undo.
+>
+> The auto-upload-on-save (`"uploadOnSave": true`) is fine — it touches one file at a time, and you initiated it. The sync command is the dangerous one because it operates on the whole tree.
+>
+> If you genuinely need to push a bunch of local files up at once: save them one at a time (each save uploads via `uploadOnSave`), or use `scp`/`rsync` from a terminal where you can see exactly what's being copied.
 
 ### Workflow gotcha
 
