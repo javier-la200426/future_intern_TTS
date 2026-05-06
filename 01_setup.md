@@ -1,76 +1,49 @@
 # 01 — Local setup
 
-You cannot start the actual work until this is wired up. Block off a half day on day one and grind through it.
+You can't start the real work until this is wired up. Block off a half day on day one.
 
-## What you are setting up
+## What you're setting up
 
-Three things, in order:
-
-1. **Tufts VPN** — required to reach the cluster from anywhere off-campus.
-2. **SSH access to the login node** with a key (so you don't type your password 50 times a day).
-3. **VS Code (or Cursor) + SFTP plugin** so editing a file locally auto-uploads it to the cluster on save.
-
-That last one is the unlock. Once it works you will edit code on your laptop with full IDE comforts and the cluster will see your changes in under a second.
+1. **Tufts VPN** — required from off-campus.
+2. **SSH key** for the cluster (so you don't type your password 50 times a day).
+3. **VS Code + SFTP** so editing a file locally auto-uploads it to the cluster on save.
 
 ---
 
 ## 1. Tufts VPN
 
-If you are off-campus or on a non-Tufts network, install the Tufts VPN first. Without it, neither SSH nor the OnDemand portal will reach you.
-
-Install link: <https://access.tufts.edu/vpn>
-
-You will need to be on the VPN whenever you:
-- SSH into the cluster
-- Open the OnDemand portal at <https://ondemand-p01.pax.tufts.edu>
-- Have Playwright drive a browser session to either of the above
-
-If you are physically on Tufts Wi-Fi (`Tufts_Secure`), you can skip the VPN.
+Install: <https://access.tufts.edu/vpn>. Required to reach the cluster, the OnDemand portal, or anything `*.pax.tufts.edu` from off-campus. Skip if you're on `Tufts_Secure` Wi-Fi.
 
 ---
 
 ## 2. SSH key for the cluster
 
-You don't strictly *need* a key — you can SSH with a password — but you'll be SSHing dozens of times a day and 2FA gets old fast. With a key it's one command.
+An SSH key is a pair of files: a **private key** (stays on your laptop, never share) and a **public key** (you append it to `~/.ssh/authorized_keys` on the cluster). When you SSH, your laptop proves it owns the private key and the cluster checks for the matching public key — no password prompt.
 
-### What an SSH key actually is (60-second version)
+The cleanest path: ask Codex/Claude on your laptop *"Generate me an ed25519 SSH key for `<utln>@login-prod.pax.tufts.edu` and walk me through installing the public half on the cluster."* The steps are the same on every Mac/Linux box.
 
-An SSH key is a pair of files: a **private key** (stays on your laptop, never share) and a **public key** (you paste this onto the cluster). When you SSH, your laptop proves it owns the private key without sending it across the wire; the cluster checks that the matching public key is on the approved list. Result: no password prompt.
-
-You'll do this exact same dance with GitHub later (chapter 04).
-
-### Generating and installing the key
-
-The easiest path is to ask Codex or Claude Code to walk you through it on your laptop — say *"Generate me a new ed25519 SSH key for connecting to my Tufts cluster account `<utln>@login-prod.pax.tufts.edu` and walk me through copying the public key over."* The steps are the same on every Mac/Linux box and the AI will adapt to your shell, so I won't reproduce a stale recipe here. Mine ended up at `/Users/javierlaveaga/.ssh/id_ed25519_tufts`.
-
-The one part to know by hand: once the key exists locally, the cluster needs the **public** half (the `.pub` file) appended to `~/.ssh/authorized_keys` in your cluster home. If you've never SSHed before, you'll need to do this first connect with your password, then add the key.
-
-### Your daily SSH command
-
-Once that's set up, my exact command is:
+Once installed, your daily SSH command looks like:
 
 ```bash
-ssh -t jlavea01@login-prod.pax.tufts.edu -p 22 -i "/Users/javierlaveaga/.ssh/id_ed25519_tufts"
+ssh -t <utln>@login-prod.pax.tufts.edu -p 22 -i ~/.ssh/id_ed25519_tufts
 ```
 
-Substitute your UTLN and your private-key path. You can also drop most of those flags into `~/.ssh/config` so you can just type `ssh pax` — ask the AI to set that up for you too.
+Drop a `Host pax` block into `~/.ssh/config` (ask the AI) so you can just type `ssh pax`.
 
 ---
 
-## 3. VS Code + SFTP — the killer setup
+## 3. VS Code + SFTP — the real unlock
 
-Editing files directly on the cluster with `nano` or `vim` works but is a slog. The setup below makes the cluster invisible: you edit on your laptop, hit save, and 0.5 seconds later the cluster has the new version.
+Editing on the cluster with `nano`/`vim` is a slog. With this setup you edit on your laptop, hit save, and the cluster has the new version in under a second.
 
 ### Install
 
-1. Install **VS Code** (or **Cursor**, which is a VS Code fork with built-in AI — same SFTP setup).
-2. In the Extensions panel, install the **SFTP** plugin by *Natizyskunk* (the maintained fork; the original by `liximomo` is abandoned). If you install the wrong one things still mostly work but the maintained one has fewer bugs.
+1. Install **VS Code** (or **Cursor**).
+2. Install the **SFTP** extension by *Natizyskunk* (the maintained fork; not the abandoned `liximomo` one).
 
 ### Configure
 
-1. In VS Code, hit **Cmd+Shift+P** (Mac) / **Ctrl+Shift+P** (Linux/Windows).
-2. Type `>SFTP: Config` and hit Enter.
-3. It will create a file at `<your-folder>/.vscode/sftp.json`. Replace its contents with this template, edited for your username and key path:
+Cmd+Shift+P → `>SFTP: Config` → Enter. Replace the generated `<your-folder>/.vscode/sftp.json` with:
 
 ```json
 {
@@ -78,56 +51,31 @@ Editing files directly on the cluster with `nano` or `vim` works but is a slog. 
   "host": "login-prod.pax.tufts.edu",
   "protocol": "sftp",
   "port": 22,
-  "username": "jlavea01",
-  "privateKeyPath": "/Users/javierlaveaga/.ssh/id_ed25519_tufts",
-  "remotePath": "/cluster/home/jlavea01/ondemand/prod",
+  "username": "<your-utln>",
+  "privateKeyPath": "/Users/<your-mac-user>/.ssh/id_ed25519_tufts",
+  "remotePath": "/cluster/home/<your-utln>/ondemand/prod",
   "uploadOnSave": true,
   "useTempFile": false,
   "openSsh": false,
-  "ignore": [
-    "**/.vscode/**",
-    "**/.git/**",
-    "**/node_modules/**"
-  ]
+  "ignore": ["**/.vscode/**", "**/.git/**", "**/node_modules/**"]
 }
 ```
 
-Things to change:
-- `username` — your UTLN, not `jlavea01`.
-- `privateKeyPath` — wherever your laptop's private key actually lives.
-- `remotePath` — your equivalent path. `ondemand/prod` is the magic folder where any subdirectory becomes a sandbox app in your OnDemand dashboard automatically.
+Edit `username`, `privateKeyPath`, and `remotePath` to your values. The `ondemand/prod` path is the magic folder — every subdirectory becomes a sandbox app in your OnDemand dashboard.
 
-The key knob is `"uploadOnSave": true`. With that on, every save in VS Code is mirrored up to the cluster instantly.
+The key knob is `"uploadOnSave": true`. Every save in VS Code is mirrored up to the cluster instantly.
 
-### The two operations you'll use daily
+### Operations you'll use
 
-- **Edit locally → save → cluster updates.** Automatic. Just save the file.
-- **New file appeared on the cluster → pull it down to your laptop.** Cmd+Shift+P → `SFTP: Sync Remote -> Local`, pick `pax-cluster`, choose the folder. This happens whenever you (or an AI agent on the cluster) creates a new file via the cluster terminal that you then want to edit locally.
+- **Edit locally → save → cluster updates.** Automatic.
+- **Pull a cluster-side file down to your laptop.** Cmd+Shift+P → `SFTP: Sync Remote -> Local`, pick `pax-cluster`, choose the folder. Use this whenever you (or an AI agent on the cluster) created a new file there that you want to edit locally.
 
-> ### ⚠ Only ever use `Sync Remote -> Local`
+> ### ⚠ Only ever use `Sync Remote -> Local`. Never `Sync Local -> Remote`.
 >
-> The SFTP plugin offers two sync directions: `Sync Remote -> Local` (pull from cluster to your laptop) and `Sync Local -> Remote` (push from your laptop to the cluster).
+> `Sync Local -> Remote` mirrors your laptop **onto** the cluster: it overwrites every cluster file with your local copy (even if the cluster's is newer) and deletes cluster files that don't exist locally. An AI agent on the cluster is constantly creating files that aren't on your laptop yet — one wrong click can wipe hours of work. There is no undo.
 >
-> **Use only `Sync Remote -> Local`. Never use `Sync Local -> Remote`.**
->
-> Why: an AI agent on the cluster (or you in another SSH session) is constantly creating and modifying files there that don't yet exist on your laptop. If you run `Sync Local -> Remote`, the plugin will mirror your laptop **onto** the cluster — which means **deleting every file on the cluster that doesn't exist locally**, and **overwriting every file that's newer on the cluster with your stale local version**. You can lose hours (or days) of work in one click. There is no undo.
->
-> The auto-upload-on-save (`"uploadOnSave": true`) is fine — it touches one file at a time, and you initiated it. The sync command is the dangerous one because it operates on the whole tree.
->
-> If you genuinely need to push a bunch of local files up at once: save them one at a time (each save uploads via `uploadOnSave`), or use `scp`/`rsync` from a terminal where you can see exactly what's being copied.
-
-### Workflow gotcha
-
-The setup is one-way "live" only on save. If you're running an AI agent on the cluster *and* editing locally at the same time, both can write to the same file and you'll race. My rule: **only one writer per file at a time**, and pull remote changes before you start editing.
+> If you genuinely need to push a batch of local files up, save them one-by-one (each save uploads via `uploadOnSave`), or use `scp`/`rsync` from a terminal.
 
 ---
-
-## 4. Open a terminal split
-
-Once SFTP is wired up, my screen layout is:
-
-- Left half: VS Code with the project open (local copy).
-- Right half: a terminal SSHed into the cluster, where I run AI agents and Slurm commands.
-- Background: a browser tab on the OnDemand portal for testing.
 
 Move on to **[02_ai_agents.md](02_ai_agents.md)**.

@@ -1,14 +1,14 @@
 # 03 — Testing
 
-Almost every painful day I had came from skipping or shortcutting testing. AI agents are extremely good at making code that *looks* right and is broken in a non-obvious way. This chapter is the single most important one in the guide.
+The most important chapter. Almost every painful day I had came from skipping or shortcutting testing — AI agents make code that *looks* right and is broken in non-obvious ways.
 
-There are three layers to testing OnDemand work:
+Three layers, all required:
 
-1. **Render the launch form / hit the API in a browser** to see the actual user-facing result.
-2. **Run backend logic in isolation** (Ruby in the terminal) to verify Slurm queries, ERB rendering, parsing.
-3. **Submit a real Slurm job** and verify it actually starts and the session works end-to-end.
+1. **Browser** — render the form / hit the API in a browser to see actual user-facing behavior.
+2. **Backend in isolation** — run Ruby/ERB in the terminal to verify Slurm queries and parsing.
+3. **Real Slurm submission** — verify the job actually starts and the session works end-to-end.
 
-Skipping layer 3 is how you ship a form that looks right but fails at `sbatch` time because of a `gres` name mismatch.
+Skipping layer 3 is how you ship a form that looks right but fails at `sbatch` because of a `gres` name mismatch.
 
 ---
 
@@ -16,74 +16,49 @@ Skipping layer 3 is how you ship a form that looks right but fails at `sbatch` t
 
 ### Manually
 
-1. Open the Tufts OnDemand dashboard: <https://ondemand-p01.pax.tufts.edu/pun/sys/dashboard>. Log in with your UTLN + Duo push.
-2. **Sandbox Apps** menu → click your app's tile (every directory in `/cluster/home/<utln>/ondemand/prod/<app>/` shows up here automatically).
-3. The launch form appears. Fill it out, submit, watch what happens. Open browser DevTools (F12) and watch the Console + Network tabs.
+1. Open <https://ondemand-p01.pax.tufts.edu/pun/sys/dashboard>, Duo push.
+2. Sandbox Apps → click your app's tile (every directory under `~/ondemand/prod/<app>/` shows up automatically).
+3. Submit the form, watch DevTools Console + Network.
 
-The "dev" URL pattern is useful for OpenComposer-style apps:
+Useful URL patterns that re-render from source on every request (no caching):
 
-- `https://ondemand-p01.pax.tufts.edu/pun/sys/dashboard/batch_connect/dev/<app-name>` for batch_connect launch forms.
-- `https://ondemand-p01.pax.tufts.edu/pun/dev/<app-name>` for passenger apps (jobmonitor, systemstatus, OpenComposer).
-
-The `/dev/` paths re-render from the source directory every request — no caching. Use these while iterating.
+- `https://ondemand-p01.pax.tufts.edu/pun/sys/dashboard/batch_connect/dev/<app>` — Batch Connect launch forms.
+- `https://ondemand-p01.pax.tufts.edu/pun/dev/<app>` — passenger apps (jobmonitor, systemstatus, OpenComposer).
 
 ### Frontend `?debug=1` flag
 
-For form pages, append `?debug=1` (e.g., `.../batch_connect/dev/javi_jupyter/?debug=1`) to enable verbose `console.log` output in the browser console. The `form.js` files in this repo all check for `URLSearchParams` containing `debug` and gate logging on it. Add the same pattern to any new app you build — three lines of code, saves hours.
+Append `?debug=1` to any form URL to enable verbose `console.log`s. The `form.js` files in this repo all check for `URLSearchParams` containing `debug` and gate logging on it. **Add the same pattern to any new app you build** — three lines of code, saves hours.
 
 ### Automated browser testing with Playwright MCP
 
-This is the unlock. Once you've installed the Playwright MCP on your **laptop's** Codex/Claude (see [02_ai_agents.md](02_ai_agents.md)), the agent can drive a Chromium browser for you.
+Once Playwright MCP is installed on your laptop (chapter 02), the workflow:
 
-#### My workflow
+1. Cluster-side agent finishes editing.
+2. Ask it: *"Write me a prompt for my laptop AI tester. URL: `<dev URL>`. Verify [behavior]. Include what to click, what to look for in the console, and which network calls to inspect."*
+3. Copy that prompt to your **laptop** terminal where Codex/Claude is running. Add this preamble:
 
-1. Cluster-side agent finishes editing a file.
-2. Ask it: *"Write me a prompt for my laptop AI tester. The tester has Playwright MCP. The cluster URL to test is `<dev URL>`. The tester needs to verify [specific behavior]. Include what to click, what to look for in the console, and which API calls to inspect in the network tab."*
-3. The cluster agent prints a multi-paragraph testing prompt.
-4. Copy that prompt into the **laptop** terminal where Codex/Claude is running.
-5. Add this preamble:
+   > *"Use Playwright MCP to navigate to `<URL>`. I will log in manually first — pause after navigating and wait for me to confirm I've completed Duo. Then proceed with: [paste prompt]"*
 
-   > *"Please use Playwright MCP to navigate to `<URL>`. I will log in manually first — pause after navigating and wait for me to confirm I've completed Duo before you continue. Then proceed with the test plan below: [paste prompt]"*
+4. The agent navigates. You do the Duo push (one human-required step). You say "logged in, continue."
+5. Agent clicks around, takes screenshots, reads console logs, reports back.
 
-6. The agent navigates. You manually do the Duo push (one human-required step). You tell the agent "logged in, continue."
-7. The agent clicks around, takes screenshots, reads console logs, and reports back.
-
-You can watch the browser window the whole time, which is mesmerizing the first few times.
-
-#### One-liner to install
-
-```bash
-codex mcp add playwright npx "@playwright/mcp@latest"
-# or
-claude mcp add playwright npx "@playwright/mcp@latest"
-```
+You can watch the browser the whole time.
 
 ---
 
-## Layer 2 — Backend logic in isolation
+## Layer 2 — Backend in isolation (no Ruby on the cluster)
 
-### The problem: no Ruby on the cluster
+OOD uses Ruby ERB heavily, but login nodes don't have Ruby in `$PATH`. So when an agent says *"let me test this ERB in a `ruby` REPL"* — it can't.
 
-Open OnDemand uses Ruby ERB heavily, but the login nodes don't have Ruby in `$PATH` by default. So when your AI agent says *"let me test this ERB by running it in a `ruby` REPL"* — it can't.
+**The fix:** stash a portable Ruby in your home directory. Extract Ruby 3.0.7 + the `psych` (YAML) and `json` gems from Rocky 9 RPMs (`rpm2cpio` + `cpio -idmv` on `ruby`, `ruby-libs`, `rubygem-psych`, `rubygem-json`). Any LLM walks you through this in 10 minutes. Result: ~30 MB at, say, `~/tmp-ruby/`.
 
-### The solution: portable Ruby in your home directory
-
-I extracted a portable Ruby from Rocky 9 RPMs (Ruby 3.0.7 + the `psych` YAML and `json` gems + their shared libs) and stashed it under my home directory. About 30 MB total. You'll need to do the same setup once.
-
-**You won't have access to my copy** — my home is `/cluster/home/jlavea01/...` and yours will be `/cluster/home/<your-utln>/...`. Two options:
-
-1. **Ask me (or whoever handed you this guide) to `tar` up our `.tmp-ruby/` directory** and untar it into your home. Fastest.
-2. **Follow the recipe** to extract a fresh portable Ruby from Rocky 9 RPMs (`rpm2cpio` + `cpio -idmv` on `ruby`, `ruby-libs`, `rubygem-psych`, `rubygem-json`, then patch `LD_LIBRARY_PATH`). Any LLM can walk you through this in 10 minutes.
-
-Once it lives at, say, `~/tmp-ruby/`, the env vars to source look like:
+Source these env vars (adjust paths to your extraction):
 
 ```bash
 RUBY=~/tmp-ruby/root/usr/bin/ruby
 LD_LIBRARY_PATH=~/tmp-ruby/root/usr/lib64
 RUBYLIB=~/tmp-ruby/root/usr/share/ruby/vendor_ruby/psych-3.3.2/lib:~/tmp-ruby/root/usr/share/ruby/vendor_ruby/json-2.5.1/lib
 ```
-
-(Adjust paths to wherever you actually extracted the RPMs; gem version numbers may drift.)
 
 Run with:
 
@@ -99,63 +74,49 @@ src = File.read('partials/slurm_discovery.erb')
 puts ERB.new(src, trim_mode: "-").result(binding)
 ```
 
-This renders the partial against your live Slurm controller and prints the output, **without going through the OOD web stack**. It is the fastest way to debug "is my Slurm query returning what I think."
+This renders the partial against your live Slurm controller without going through OOD. Fastest way to debug "is my Slurm query returning what I think." Must run on a login node (controller access).
 
-The original write-up of this technique lives in `TESTING_REPORT.md` at the root of the `TuftsRT/OpenComposer` repo on GitHub — read it once you've cloned that repo, the troubleshooting log is useful.
+The original setup write-up lives in `TESTING_REPORT.md` at the root of the `TuftsRT/OpenComposer` repo — read it once you've cloned that repo.
 
-### The `DEBUG_GPU_DISCOVERY` flag pattern
+### The `DEBUG_*` flag pattern
 
-In `javi_jupyter/partials/gpu_discovery.erb` (and the copies in other apps) there's a constant near the top:
+The `gpu_discovery.erb` partial in `javi_jupyter` (and copies in other apps) starts with:
 
 ```ruby
 DEBUG_GPU_DISCOVERY = false
 ```
 
-Flip it to `true`, render the form once, and the partial dumps every intermediate hash (`@detected_types`, `@user_partitions`, per-partition cores/memory/hours, `@unavailable_gpu_types`) to `~/javi_gpu_debug.log`. Errors are swallowed so the form keeps rendering even if the debug write fails.
+Flip to `true`, render once, and the partial dumps every intermediate hash to `~/javi_gpu_debug.log`. Errors are swallowed so the form keeps rendering. **Adopt the same pattern in any new ERB partial:** a flag at the top, a `begin/rescue/nil` block that writes a structured dump to a file in `~/`. Don't `puts` — the form is streaming HTML.
 
-This is the single most useful debug tool I built. Adopt the same pattern in any new ERB partial:
-
-- A constant flag at the top.
-- A `begin / rescue / nil` block that writes a structured dump to a file in `~/`.
-- Don't `puts` — the form is already streaming HTML, your debug output will land inside the page.
-
-Combined with the frontend `?debug=1`, you can debug the full request lifecycle: server-side state in `javi_gpu_debug.log`, client-side state in browser console.
+Combined with frontend `?debug=1`, you can debug the whole request lifecycle: server-side state in a log file, client-side state in browser console.
 
 ---
 
-## Layer 3 — Submit an actual Slurm job
+## Layer 3 — Submit a real Slurm job
 
-Even if the form looks perfect and the API returns the right JSON, you have not tested it until a job actually starts. The `gres` name your form sends and the `gres` name Slurm expects can differ silently (lowercase vs. uppercase, with or without a `:`, with the wrong `--constraint=`).
+Even with a perfect-looking form and correct API JSON: the `gres` your form sends and the `gres` Slurm expects can differ silently (case, with/without `:`, wrong `--constraint=`).
 
 After form testing:
 
-1. Submit the form for real from the OnDemand UI.
-2. Wait for it to enter `RUNNING` (or fail with a clear reason).
-3. SSH into the running node (jobmonitor lets you click into the node) and verify the environment is what you expected.
-4. Use the app inside the session (open Workbench, run a notebook, etc.) — don't just confirm the job started; confirm the *thing the user actually wants to do* works.
+1. Submit for real from OnDemand.
+2. Wait for `RUNNING` (or a clear failure).
+3. SSH into the running node (jobmonitor lets you click in) and verify the environment.
+4. Use the app inside the session — don't just confirm the job started, confirm the *thing the user wants to do* works.
 
 This is where regressions hide.
 
 ---
 
-## Bonus — testing without Ruby: the `.erb` rendering trick
-
-If you don't want to use the portable Ruby, an alternative is to render ERB through a script that runs inside an actual Slurm job on a compute node (where Ruby is available via the OOD Passenger app's bundled stack). Slower than `.tmp-ruby`, but works as a fallback. Most of the time, just use the portable Ruby.
-
----
-
-## Pre-commit check list
-
-Before I push any change to one of these apps, I tick through:
+## Pre-commit checklist
 
 - [ ] Form renders without 500.
 - [ ] Browser console has no red errors with `?debug=1`.
-- [ ] The specific scenario I changed works (clicked the new dropdown, saw the new value, etc.).
-- [ ] Edge case: pick a GPU type with no available nodes — does the warning show?
-- [ ] Edge case: switch between GPU and CPU partitions — do max values update?
-- [ ] Submit a real job and confirm it enters `RUNNING`.
-- [ ] If I touched a parser regex, run the parser standalone with a few real Slurm outputs.
+- [ ] The specific change works.
+- [ ] Edge case: GPU type with no available nodes shows the warning.
+- [ ] Edge case: switch GPU↔CPU partitions, max values update.
+- [ ] Real job submission enters `RUNNING`.
+- [ ] If you touched a parser regex, run it against a few real Slurm outputs.
 
-When I skip this list to "save time" I always lose more time later.
+Skipping this list to "save time" always loses more time later.
 
 Move on to **[04_git_workflow.md](04_git_workflow.md)**.

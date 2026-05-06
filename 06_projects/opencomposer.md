@@ -3,89 +3,82 @@
 **Local path (after you clone):** `/cluster/home/<your-utln>/ondemand/prod/OpenComposer/`
 **Repo:** `git@github.com:TuftsRT/OpenComposer.git` (forked from `RIKEN-RCCS/OpenComposer`)
 
-OpenComposer is a 3rd-party Open OnDemand framework forked from RIKEN-RCCS. Unlike a single-purpose Batch Connect sandbox app (e.g., `javi_jupyter`, which launches one interactive session), OpenComposer is a **meta-app** that hosts multiple sub-apps under a shared Sinatra backend, with a richer JS/CSS form engine.
+A 3rd-party OOD framework I forked into TuftsRT. Unlike single-purpose Batch Connect apps (`javi_jupyter`, `ansys`), OpenComposer is a **meta-app** hosting multiple sub-apps under a shared Sinatra backend, with its own widget engine.
 
-This is also the directory that contains **`TESTING_REPORT.md`** — the canonical write-up of the "no Ruby on the cluster" workaround referenced throughout this guide.
+This directory also holds **`TESTING_REPORT.md`**, the canonical write-up of the no-Ruby-on-the-cluster workaround referenced in [../03_testing.md](../03_testing.md).
 
 ---
 
-## How it differs from a sandbox app like `javi_jupyter`
+## How it differs from a sandbox app
 
-| | `javi_jupyter` (Batch Connect) | OpenComposer (meta-app) |
+| | `javi_jupyter` | OpenComposer |
 |---|---|---|
 | Launches | One interactive Slurm job | Multiple sub-apps (`apps/GPU`, `apps/CPU`, `apps/alphafold3`) |
 | Backend | OOD's batch_connect dispatcher | Sinatra (`run.rb`) |
-| Form engine | YAML widgets via OOD core | Custom widget engine (`lib/form.rb` + `public/form.js`, with `data-*` attrs and `init_dw`/`exec_dw` JS) |
-| Schedulers | Slurm only | Slurm + PBS + GE + Fujitsu TCS (abstracted in `lib/schedulers/`) |
-| Add a new app | New top-level directory under `ondemand/prod/` | Add a directory under `OpenComposer/apps/` with its own `form.yml` |
+| Form engine | YAML widgets via OOD core | Custom (`lib/form.rb` + `public/form.js`, with `init_dw`/`exec_dw` JS) |
+| Schedulers | Slurm only | Slurm + PBS + GE + Fujitsu TCS (`lib/schedulers/`) |
+| Add a new app | New top-level dir under `ondemand/prod/` | New dir under `OpenComposer/apps/` with its own `form.yml` |
 
 ---
 
-## What I contributed (theme: porting the dynamic-discovery pattern)
+## What I contributed (theme: porting the dynamic pattern)
 
-Tufts contributions visible in `git log` are all variations on the same theme — bringing the `javi_jupyter` dynamic-Slurm-discovery pattern into OpenComposer's framework:
+All Tufts commits port the `javi_jupyter` dynamic-discovery pattern into OpenComposer's framework:
 
-- `50b269e` — Add dynamic SLURM resource discovery to GPU app (2D partition+GPU lookups, gres translation).
-- `abfc9ac` — Add dynamic discovery to CPU app, filter out GPU-only partitions.
-- `4aa0972` — Extract shared helpers/fallbacks into `partials/slurm_discovery.erb` for reuse.
-- `84d895b`, `4c40abf`, `821a6cb` — Remove hardcoded GPU label map; use raw Slurm GPU labels; unify A100 variants.
-- `15fdb7e` — Adopt `TuftsRT/ood-resource-discovery` improvements into OpenComposer (the consolidation step).
+- `50b269e` — Add dynamic SLURM discovery to GPU app (2D partition+GPU lookups, gres translation)
+- `abfc9ac` — Add dynamic discovery to CPU app, filter out GPU-only partitions
+- `4aa0972` — Extract shared helpers into `partials/slurm_discovery.erb`
+- `84d885b` / `4c40abf` / `821a6cb` — Remove hardcoded GPU label map; use raw Slurm GPU labels; unify A100 variants
+- `15fdb7e` — Adopt `TuftsRT/ood-resource-discovery` improvements
 
 If your task is "add X to an OpenComposer sub-app and make it dynamic," these commits are your reading list.
 
 ---
 
-## TESTING_REPORT.md — the "no Ruby on the cluster" technique
+## TESTING_REPORT.md — the no-Ruby workaround
 
-**This is the most important file in the OpenComposer repo to read after you clone it.** It documents how I worked around the lack of Ruby on Tufts cluster login nodes. The recipe (and a fuller explanation) is in **[../03_testing.md](../03_testing.md)** in this guide. The short version:
+Login nodes lack Ruby in `$PATH`. I extracted a portable Ruby + `psych`/`json` gems into a `~/tmp-ruby/` directory; sourcing a few env vars lets you `ruby -e '...'` and render ERB partials standalone. Use case: render `partials/slurm_discovery.erb` via `ERB.new(src, trim_mode: "-").result(binding)` to validate Slurm queries without going through OOD.
 
-- Login nodes don't have Ruby in `$PATH`.
-- I extracted a portable Ruby (3.0.7 + `psych` + `json` gems) from Rocky 9 RPMs into a `~/tmp-ruby/` directory in my home.
-- Sourcing a few env vars (`RUBY=...`, `LD_LIBRARY_PATH=...`, `RUBYLIB=...`) lets you `ruby -e '...'` and render ERB partials standalone.
-- Use case: render `partials/slurm_discovery.erb` via `ERB.new(src, trim_mode: "-").result(binding)` to validate Slurm queries and computed values **without going through the OOD web stack**. Must run on a login node (with Slurm controller access).
-
-You won't have my `tmp-ruby/` — set up your own (see [../03_testing.md](../03_testing.md) for the two ways to do it). Then read the actual `TESTING_REPORT.md` inside the cloned `OpenComposer` repo for the full troubleshooting log and edge cases I documented.
+You won't have my `tmp-ruby/`. Set up your own — full recipe in [../03_testing.md](../03_testing.md). Then read the actual `TESTING_REPORT.md` in this repo for the troubleshooting log.
 
 ---
 
 ## TESTING.md — the two-layer philosophy
 
-`TESTING.md` (at the root of the cloned `OpenComposer` repo) codifies a two-layer testing approach:
+Two-layer testing:
 
-1. **Terminal ERB rendering** (using the portable Ruby above) catches backend logic and Ruby exceptions fast.
-2. **Browser testing** at `/pun/dev/OpenComposer/{GPU,CPU}` catches JS timing/ordering bugs that the backend can't see (e.g., `updateArea` overwriting 2D overrides because of script execution order).
+1. **Terminal ERB rendering** (using portable Ruby) catches backend logic / Ruby exceptions fast.
+2. **Browser testing** at `/pun/dev/OpenComposer/{GPU,CPU}` catches JS timing/ordering bugs the backend can't see (e.g., `updateArea` overwriting 2D overrides).
 
-Neither layer alone is sufficient. And **both** layers can pass while a real `sbatch` submission still fails — usually because of a `gres` name mismatch. Always test layer 3 too (a real job submission).
+Neither layer alone is sufficient. And **both** can pass while real `sbatch` still fails — usually a `gres` name mismatch. Always test layer 3 too.
 
 ---
 
-## CLAUDE.md — instructions to AI agents
-
-`CLAUDE.md` (at the root of the cloned `OpenComposer` repo) documents architectural quirks specifically for AI agents. The highlights are useful for humans too:
+## CLAUDE.md — gotchas (useful for humans too)
 
 - ERB files evaluate under `run.rb`'s binding, so `__FILE__` is `run.rb`. Use `./` paths from repo root, not `File.dirname(__FILE__)`.
-- Slurm gres names differ from internal IDs in OpenComposer's config (`a100_40` is internal; submission uses `--gres=gpu:a100 --constraint=a100-40G`). Mismatches here are silent at form-render time and explode at `sbatch`.
-- Script-template syntax in OpenComposer: `#{key}` hides the line if the value is empty; `#{:key}` keeps the line. Easy to confuse.
-- 2D JS overrides must `setTimeout(0)` to run after OpenComposer's synchronous 1D `set-max-*` directives, or the override gets clobbered.
+- Slurm `gres` names differ from internal IDs in OC's config (`a100_40` is internal; submission uses `--gres=gpu:a100 --constraint=a100-40G`). Mismatches are silent at form-render time and explode at `sbatch`.
+- Script-template syntax: `#{key}` hides the line if value is empty; `#{:key}` keeps it. Easy to confuse.
+- 2D JS overrides must `setTimeout(0)` to run after OC's synchronous 1D `set-max-*` directives, or the override gets clobbered.
 
-If you're modifying anything inside OpenComposer, read `CLAUDE.md` first.
+Read `CLAUDE.md` first before touching anything inside OpenComposer.
 
 ---
 
 ## Read in this order
 
-1. `CLAUDE.md` — the gotchas.
-2. `TESTING_REPORT.md` — the portable-Ruby setup.
-3. `TESTING.md` — the testing philosophy.
-4. `CHANGES-dynamic-slurm-gpu.md` — change log of my dynamic-discovery work.
-5. `run.rb` (line ~60, the `read_yaml` function) — see how ERB evaluation is wired.
-6. `partials/slurm_discovery.erb` — OpenComposer's version of the discovery partial.
-7. `apps/GPU/form.yml.erb` — example sub-app using the partial.
-8. `lib/form.rb` and `public/form.js` — the custom widget engine.
-9. `lib/schedulers/` — multi-scheduler abstraction (only matters if you target non-Slurm).
+1. `CLAUDE.md`
+2. `TESTING_REPORT.md`
+3. `TESTING.md`
+4. `CHANGES-dynamic-slurm-gpu.md`
+5. `run.rb` (line ~60, `read_yaml`) — see how ERB evaluation is wired
+6. `partials/slurm_discovery.erb`
+7. `apps/GPU/form.yml.erb`
+8. `lib/form.rb` and `public/form.js`
+9. `lib/schedulers/` (only if you target non-Slurm)
 
 ---
 
-## Where this app sits in the long-term plan
+## Long-term direction
 
-`OpenComposer` was the first big "real" port of the dynamic-discovery pattern beyond a sandbox. The eventual direction is for `OpenComposer/partials/slurm_discovery.erb` to be replaced by including the shared `TuftsRT/ood-resource-discovery` widget. Commit `15fdb7e` was the first step in that direction.
+`OpenComposer/partials/slurm_discovery.erb` should eventually be replaced by including the shared `TuftsRT/ood-resource-discovery` widget. Commit `15fdb7e` was the first step.
