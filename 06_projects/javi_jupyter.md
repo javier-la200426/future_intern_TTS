@@ -1,6 +1,6 @@
 # javi_jupyter — the foundation
 
-**Path:** `/cluster/home/jlavea01/ondemand/prod/javi_jupyter/`
+**Local path (after you clone):** `/cluster/home/<your-utln>/ondemand/prod/javi_jupyter/` — any directory under `ondemand/prod/` becomes a sandbox app in your OnDemand dashboard automatically.
 **Repo:** `git@github.com:javier-la200426/jupyterNotebookDynamicFormYml.git`
 
 This is **the foundation app** for everything else. It's where the dynamic Slurm-aware launch-form pattern was prototyped. Every other launch form (`ansys`, `igv`, the OpenComposer apps) copies from it. Before touching anything else, read this directory.

@@ -66,23 +66,24 @@ claude mcp add playwright npx "@playwright/mcp@latest"
 
 Open OnDemand uses Ruby ERB heavily, but the login nodes don't have Ruby in `$PATH` by default. So when your AI agent says *"let me test this ERB by running it in a `ruby` REPL"* — it can't.
 
-### The solution: portable Ruby tucked into your home directory
+### The solution: portable Ruby in your home directory
 
-I stashed a portable Ruby (extracted from Rocky 9 RPMs) at:
+I extracted a portable Ruby from Rocky 9 RPMs (Ruby 3.0.7 + the `psych` YAML and `json` gems + their shared libs) and stashed it under my home directory. About 30 MB total. You'll need to do the same setup once.
 
-```
-/cluster/home/jlavea01/ondemand/prod/javi_jupyter/.tmp-ruby/
-```
+**You won't have access to my copy** — my home is `/cluster/home/jlavea01/...` and yours will be `/cluster/home/<your-utln>/...`. Two options:
 
-It includes Ruby 3.0.7, the necessary shared libs, and the `psych` (YAML) and `json` gems. About 30MB total.
+1. **Ask me (or whoever handed you this guide) to `tar` up our `.tmp-ruby/` directory** and untar it into your home. Fastest.
+2. **Follow the recipe** to extract a fresh portable Ruby from Rocky 9 RPMs (`rpm2cpio` + `cpio -idmv` on `ruby`, `ruby-libs`, `rubygem-psych`, `rubygem-json`, then patch `LD_LIBRARY_PATH`). Any LLM can walk you through this in 10 minutes.
 
-The full setup story is in **`/cluster/home/jlavea01/ondemand/prod/OpenComposer/TESTING_REPORT.md`** — read that file. The exact env vars to source:
+Once it lives at, say, `~/tmp-ruby/`, the env vars to source look like:
 
 ```bash
-RUBY=/cluster/home/jlavea01/ondemand/prod/javi_jupyter/.tmp-ruby/root/usr/bin/ruby
-LD_LIBRARY_PATH=/cluster/home/jlavea01/ondemand/prod/javi_jupyter/.tmp-ruby/root/usr/lib64
-RUBYLIB=...psych-3.3.2/lib:...json-2.5.1/lib
+RUBY=~/tmp-ruby/root/usr/bin/ruby
+LD_LIBRARY_PATH=~/tmp-ruby/root/usr/lib64
+RUBYLIB=~/tmp-ruby/root/usr/share/ruby/vendor_ruby/psych-3.3.2/lib:~/tmp-ruby/root/usr/share/ruby/vendor_ruby/json-2.5.1/lib
 ```
+
+(Adjust paths to wherever you actually extracted the RPMs; gem version numbers may drift.)
 
 Run with:
 
@@ -100,7 +101,7 @@ puts ERB.new(src, trim_mode: "-").result(binding)
 
 This renders the partial against your live Slurm controller and prints the output, **without going through the OOD web stack**. It is the fastest way to debug "is my Slurm query returning what I think."
 
-> **TODO inherited from me:** move `.tmp-ruby/` from inside `javi_jupyter/` to `/cluster/home/<utln>/ondemand/prod/.tmp-ruby/` so it's app-agnostic. I never got around to it.
+The original write-up of this technique lives in `TESTING_REPORT.md` at the root of the `TuftsRT/OpenComposer` repo on GitHub — read it once you've cloned that repo, the troubleshooting log is useful.
 
 ### The `DEBUG_GPU_DISCOVERY` flag pattern
 

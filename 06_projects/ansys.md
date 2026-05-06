@@ -1,6 +1,6 @@
 # ansys — a migration story with two cautionary tales
 
-**Path:** `/cluster/home/jlavea01/ondemand/prod/ansys/`
+**Local path (after you clone):** `/cluster/home/<your-utln>/ondemand/prod/ansys/`
 **Repo:** `git@github.com:javier-la200426/ansys-dynamic.git`
 
 A Batch Connect Open OnDemand app that launches an ANSYS Workbench VNC desktop session inside a Slurm job on the `pax` cluster. It appears as a tile on the OOD dashboard under *Interactive Apps → Apps* and is the GUI entry point for users who want Workbench without ssh + X11.
@@ -60,7 +60,7 @@ A `Failed to connect to server` error in noVNC after the user closes Workbench i
 
 ## Discovery partial relationship
 
-`/cluster/home/jlavea01/ondemand/prod/ansys/partials/gpu_discovery.erb` is **byte-identical** to `/cluster/home/jlavea01/ondemand/prod/javi_jupyter/partials/gpu_discovery.erb`. It was copied when ansys was migrated. The long-term plan is to replace it with the shared `ood-resource-discovery` partial so both apps (and `igv`) consume one source of truth. Until then, if you fix a bug in one copy, fix it in all three.
+As of when I left, `ansys/partials/gpu_discovery.erb` is **byte-identical** to `javi_jupyter/partials/gpu_discovery.erb`. It was copied when ansys was migrated. The long-term plan is to replace it with the shared `ood-resource-discovery` partial so both apps (and `igv`) consume one source of truth. Until then, if you fix a bug in one copy, fix it in all three.
 
 ---
 

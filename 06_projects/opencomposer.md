@@ -1,6 +1,6 @@
 # OpenComposer — the meta-app
 
-**Path:** `/cluster/home/jlavea01/ondemand/prod/OpenComposer/`
+**Local path (after you clone):** `/cluster/home/<your-utln>/ondemand/prod/OpenComposer/`
 **Repo:** `git@github.com:TuftsRT/OpenComposer.git` (forked from `RIKEN-RCCS/OpenComposer`)
 
 OpenComposer is a 3rd-party Open OnDemand framework forked from RIKEN-RCCS. Unlike a single-purpose Batch Connect sandbox app (e.g., `javi_jupyter`, which launches one interactive session), OpenComposer is a **meta-app** that hosts multiple sub-apps under a shared Sinatra backend, with a richer JS/CSS form engine.
@@ -37,35 +37,20 @@ If your task is "add X to an OpenComposer sub-app and make it dynamic," these co
 
 ## TESTING_REPORT.md — the "no Ruby on the cluster" technique
 
-**This is the most important file in this directory.** Open it: `/cluster/home/jlavea01/ondemand/prod/OpenComposer/TESTING_REPORT.md`.
+**This is the most important file in the OpenComposer repo to read after you clone it.** It documents how I worked around the lack of Ruby on Tufts cluster login nodes. The recipe (and a fuller explanation) is in **[../03_testing.md](../03_testing.md)** in this guide. The short version:
 
-Login nodes don't have Ruby in `$PATH`, but you constantly need to render ERB and exercise Slurm queries from the terminal. The fix: a portable Ruby extracted from Rocky 9 RPMs, ~30MB, stashed in `javi_jupyter/.tmp-ruby/`. Includes Ruby 3.0.7 + libs + `psych` (YAML) + `json`.
+- Login nodes don't have Ruby in `$PATH`.
+- I extracted a portable Ruby (3.0.7 + `psych` + `json` gems) from Rocky 9 RPMs into a `~/tmp-ruby/` directory in my home.
+- Sourcing a few env vars (`RUBY=...`, `LD_LIBRARY_PATH=...`, `RUBYLIB=...`) lets you `ruby -e '...'` and render ERB partials standalone.
+- Use case: render `partials/slurm_discovery.erb` via `ERB.new(src, trim_mode: "-").result(binding)` to validate Slurm queries and computed values **without going through the OOD web stack**. Must run on a login node (with Slurm controller access).
 
-Verbatim env vars to source:
-
-```bash
-RUBY=/cluster/home/jlavea01/ondemand/prod/javi_jupyter/.tmp-ruby/root/usr/bin/ruby
-LD_LIBRARY_PATH=/cluster/home/jlavea01/ondemand/prod/javi_jupyter/.tmp-ruby/root/usr/lib64
-RUBYLIB=...psych-3.3.2/lib:...json-2.5.1/lib   # full paths in TESTING_REPORT.md
-```
-
-Run with:
-
-```bash
-LD_LIBRARY_PATH="$LD_LIBRARY_PATH" RUBYLIB="$RUBYLIB" "$RUBY" -e '<your script>'
-```
-
-The use case: render `partials/slurm_discovery.erb` via `ERB.new(src, trim_mode: "-").result(binding)` to validate your Slurm queries and computed values **without going through the OOD web stack**. Must run on a login node (with Slurm controller access).
-
-> **TODO I left:** move `.tmp-ruby/` from inside `javi_jupyter/` to `/cluster/home/<utln>/ondemand/prod/.tmp-ruby/` so it's app-agnostic. Easy refactor, just paths to update.
-
-The full chapter on testing is in **[../03_testing.md](../03_testing.md)** — this file is just the OpenComposer-specific story.
+You won't have my `tmp-ruby/` — set up your own (see [../03_testing.md](../03_testing.md) for the two ways to do it). Then read the actual `TESTING_REPORT.md` inside the cloned `OpenComposer` repo for the full troubleshooting log and edge cases I documented.
 
 ---
 
 ## TESTING.md — the two-layer philosophy
 
-`/cluster/home/jlavea01/ondemand/prod/OpenComposer/TESTING.md` codifies a two-layer testing approach:
+`TESTING.md` (at the root of the cloned `OpenComposer` repo) codifies a two-layer testing approach:
 
 1. **Terminal ERB rendering** (using the portable Ruby above) catches backend logic and Ruby exceptions fast.
 2. **Browser testing** at `/pun/dev/OpenComposer/{GPU,CPU}` catches JS timing/ordering bugs that the backend can't see (e.g., `updateArea` overwriting 2D overrides because of script execution order).
@@ -76,7 +61,7 @@ Neither layer alone is sufficient. And **both** layers can pass while a real `sb
 
 ## CLAUDE.md — instructions to AI agents
 
-`/cluster/home/jlavea01/ondemand/prod/OpenComposer/CLAUDE.md` documents architectural quirks specifically for AI agents. The highlights are useful for humans too:
+`CLAUDE.md` (at the root of the cloned `OpenComposer` repo) documents architectural quirks specifically for AI agents. The highlights are useful for humans too:
 
 - ERB files evaluate under `run.rb`'s binding, so `__FILE__` is `run.rb`. Use `./` paths from repo root, not `File.dirname(__FILE__)`.
 - Slurm gres names differ from internal IDs in OpenComposer's config (`a100_40` is internal; submission uses `--gres=gpu:a100 --constraint=a100-40G`). Mismatches here are silent at form-render time and explode at `sbatch`.

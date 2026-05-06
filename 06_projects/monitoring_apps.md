@@ -1,8 +1,8 @@
 # tufts-jobmonitor + tufts-systemstatus — monitoring apps
 
-**Paths:**
-- `/cluster/home/jlavea01/ondemand/prod/tufts-jobmonitor/`
-- `/cluster/home/jlavea01/ondemand/prod/tufts-systemstatus/`
+**Local paths (after you clone):**
+- `/cluster/home/<your-utln>/ondemand/prod/tufts-jobmonitor/`
+- `/cluster/home/<your-utln>/ondemand/prod/tufts-systemstatus/`
 
 **Repos:**
 - `git@github.com:TuftsRT/tufts-jobmonitor.git`
@@ -88,7 +88,7 @@ Notice the regex commits — Slurm's text outputs are full of edge cases. Always
 
 ## Read in this order (jobmonitor first)
 
-`/cluster/home/jlavea01/ondemand/prod/tufts-jobmonitor/`:
+In the cloned `tufts-jobmonitor` repo:
 1. `ARCHITECTURE.md`
 2. `app.rb`
 3. `lib/job_parser.rb` (or whichever lib file holds the parsers — there are a couple)
@@ -96,7 +96,7 @@ Notice the regex commits — Slurm's text outputs are full of edge cases. Always
 5. `views/dashboard_iframe.html.erb`
 6. `public/script.js`
 
-`/cluster/home/jlavea01/ondemand/prod/tufts-systemstatus/`:
+In the cloned `tufts-systemstatus` repo:
 1. `system-status-architecture.txt`
 2. `app.rb`
 3. `lib/slurm_parser.rb`

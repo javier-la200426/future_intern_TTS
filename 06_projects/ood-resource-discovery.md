@@ -1,6 +1,6 @@
 # ood-resource-discovery — the shared widget
 
-**Path:** `/cluster/home/jlavea01/ondemand/prod/ood-resource-discovery/`
+**Local path (after you clone):** `/cluster/home/<your-utln>/ondemand/prod/ood-resource-discovery/`
 **Repo:** <https://github.com/TuftsRT/ood-resource-discovery> (HTTPS remote)
 
 This is the **cleaned-up, production-shared version** of the dynamic-Slurm-discovery pattern that was prototyped in `javi_jupyter`. It lives in its own repo so multiple OOD apps can include it as a single source of truth instead of each maintaining a drifting copy.
