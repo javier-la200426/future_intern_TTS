@@ -72,17 +72,21 @@ git push -u origin fix/scontrol-regex-edge-case
 
 ---
 
-## Commands you'll forget
+## The commands I actually use
 
 ```bash
-git diff main...HEAD              # your branch vs main
-git show <hash>:path/to/file      # file at older commit
-git log -S "exact_string"         # find which commit added a line
-git reset --soft HEAD~1           # undo last commit, keep changes staged
-git blame path/to/file            # who/why for each line
+git status                        # what changed (run constantly)
+git add <file>                    # stage one file
+git add .                         # stage everything in CWD
+git commit -m "message here"      # commit staged changes
+git log                           # commit history (--oneline -10 for compact)
+git branch                        # list branches
+git checkout -b "branch-name"     # new branch + switch to it
 ```
 
 `git status` and `git log --oneline -10` answer 80% of "wait what state am I in." Run them constantly.
+
+Anything fancier (`git diff`, `git show`, `git blame`, `git reset`) — ask the AI when you need it. Don't memorize what you won't use.
 
 ---
 

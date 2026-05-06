@@ -30,6 +30,12 @@ ssh -t <utln>@login-prod.pax.tufts.edu -p 22 -i ~/.ssh/id_ed25519_tufts
 
 Drop a `Host pax` block into `~/.ssh/config` (ask the AI) so you can just type `ssh pax`.
 
+### Shell history search — `Ctrl+R`
+
+You don't need to retype that long SSH command. Hit **`Ctrl+R`** in your terminal (Mac and Linux, in `bash` or `zsh`), start typing — `ssh` is enough — and the prompt fills in with the most recent matching command from your history. Hit `Ctrl+R` again to step further back. Enter to run, arrow keys to edit first.
+
+I use this every time I SSH. Type `Ctrl+R` → `ssh` → Enter, done. Same trick works for `git push origin <long-branch-name>`, `codex mcp add ...`, anything you've run recently. Windows PowerShell uses a different shortcut (typically `F8` or arrow-up filtering); ask the AI on Windows.
+
 ---
 
 ## 3. VS Code + SFTP — the real unlock
